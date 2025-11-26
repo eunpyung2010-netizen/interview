@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 면접 분석 시스템</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Noto Sans KR', sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: #e8e8e8; min-height: 100vh; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    header { text-align: center; padding: 2rem 0; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 2rem; }
+    header h1 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, #3B82F6, #60A5FA); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; }
+    header p { color: #888; }
+    .tabs { display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1rem; }
+    .tab-btn { padding: 0.75rem 1.5rem; background: transparent; border: none; color: #888; cursor: pointer; font-size: 1rem; font-weight: 500; border-bottom: 3px solid transparent; transition: all 0.3s; }
+    .tab-btn:hover { color: #ccc; }
+    .tab-btn.active { color: #3B82F6; border-bottom-color: #3B82F6; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .card h2 { font-size: 1.25rem; margin-bottom: 1rem; }
+    input, textarea, select { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.75rem 1rem; color: #e8e8e8; font-size: 0.95rem; width: 100%; font-family: inherit; }
+    input:focus, textarea:focus { outline: none; border-color: #3B82F6; }
+    label { display: block; margin-bottom: 0.35rem; color: #888; font-size: 0.85rem; }
+    .btn { padding: 0.75rem 1.5rem; border-radius: 12px; font-weight: 500; cursor: pointer; border: none; font-size: 0.95rem; display: inline-flex; align-items: center; gap: 0.5rem; transition: all 0.3s; }
+    .btn-primary { background: linear-gradient(135deg, #3B82F6, #2563EB); color: white; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(59,130,246,0.4); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-secondary { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; }
+    .btn-danger { background: linear-gradient(135deg, #EF4444, #DC2626); color: white; }
+    .btn-sm { padding: 0.5rem 1rem; font-size: 0.85rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 1rem; text-align: left; }
+    th { background: rgba(0,0,0,0.3); color: #aaa; font-size: 0.9rem; }
+    tr { border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .status-badge { padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 500; }
+    .status-waiting { background: rgba(107,114,128,0.2); color: #9CA3AF; }
+    .status-recording { background: rgba(239,68,68,0.2); color: #EF4444; }
+    .status-converting { background: rgba(245,158,11,0.2); color: #F59E0B; }
+    .status-analyzing { background: rgba(59,130,246,0.2); color: #3B82F6; }
+    .status-completed { background: rgba(16,185,129,0.2); color: #10B981; }
+    .status-error { background: rgba(239,68,68,0.2); color: #EF4444; }
+    .type-일반 { background: rgba(59,130,246,0.2); color: #3B82F6; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; }
+    .type-발표 { background: rgba(168,85,247,0.2); color: #A855F7; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; }
+    .alert { padding: 1rem; border-radius: 12px; margin-bottom: 1rem; display: flex; align-items: start; gap: 0.75rem; }
+    .alert-error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #EF4444; }
+    .alert-success { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #10B981; }
+    .alert-warning { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); color: #F59E0B; }
+    .alert-info { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); color: #93C5FD; }
+    .recording-dot { width: 12px; height: 12px; background: #EF4444; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .delete-btn { background: transparent; border: none; color: #666; cursor: pointer; padding: 0.5rem; }
+    .delete-btn:hover { color: #EF4444; }
+    .competency-item { display: grid; grid-template-columns: 40px 200px 1fr 40px; gap: 1rem; align-items: start; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 12px; margin-bottom: 1rem; }
+    .competency-num { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #3B82F6, #60A5FA); display: flex; align-items: center; justify-content: center; font-weight: 600; }
+    .result-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+    .result-card { padding: 1.25rem; background: rgba(0,0,0,0.2); border-radius: 12px; cursor: pointer; border: 2px solid transparent; transition: all 0.3s; }
+    .result-card:hover { background: rgba(0,0,0,0.3); }
+    .result-card.selected { border-color: #3B82F6; }
+    .analysis-section { margin-bottom: 2rem; padding: 1.5rem; background: rgba(0,0,0,0.2); border-radius: 12px; }
+    .analysis-section h3 { font-size: 1.2rem; color: #60A5FA; margin-bottom: 1.25rem; }
+    .evidence { color: #888; font-size: 0.9rem; padding-left: 1rem; border-left: 2px solid; margin-top: 0.35rem; }
+    .manual-form { display: none; }
+    .manual-form.show { display: block; }
+    @media (max-width: 768px) { .competency-item { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎯 AI 면접 분석 시스템</h1>
+      <p>면접 녹음 → 음성 변환 → AI 역량 분석 → 피드백 생성</p>
+    </header>
+    
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showTab('settings')">⚙️ 설정</button>
+      <button class="tab-btn" onclick="showTab('candidates')">👥 지원자 관리</button>
+      <button class="tab-btn" onclick="showTab('results')">📄 결과 확인</button>
+    </div>
+    
+    <div id="settings" class="tab-content active">
+      <div class="card">
+        <h2>🔑 API 설정</h2>
+        <div style="margin-bottom: 1rem;">
+          <label>OpenAI API Key (Whisper 음성 인식용)</label>
+          <input type="password" id="openaiKey" placeholder="sk-..." style="max-width: 500px;">
+          <p style="font-size: 0.8rem; color: #666; margin-top: 0.5rem;">* 음성을 텍스트로 변환하는데 사용됩니다.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <h2>📋 평가 역량 설정</h2>
+          <button class="btn btn-primary" onclick="addCompetency()">➕ 역량 추가</button>
+        </div>
+        <div id="competencyList"></div>
+      </div>
+    </div>
+    
+    <div id="candidates" class="tab-content">
+      <div class="card" style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+          <label class="btn btn-primary" style="cursor: pointer;">
+            📁 CSV 업로드
+            <input type="file" id="csvUpload" accept=".csv" style="display: none;" onchange="handleCSV(event)">
+          </label>
+          <button class="btn btn-secondary" onclick="toggleManual()">➕ 수동 추가</button>
+          <span style="color: #888; font-size: 0.85rem; align-self: center;">(면접번호, 지원직무, 면접형식)</span>
+        </div>
+        <button class="btn btn-secondary" onclick="downloadAll()" id="downloadAllBtn" disabled>📥 전체 다운로드</button>
+      </div>
+      
+      <div class="card manual-form" id="manualForm">
+        <h2>➕ 지원자 수동 추가</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 1rem; align-items: end;">
+          <div><label>면접번호 *</label><input type="text" id="manualId" placeholder="예: A001"></div>
+          <div><label>지원직무</label><input type="text" id="manualPos" placeholder="예: 개발"></div>
+          <div><label>면접형식</label><select id="manualType"><option value="일반">일반</option><option value="발표">발표</option></select></div>
+          <div style="display: flex; gap: 0.5rem;"><button class="btn btn-primary" onclick="addManual()">추가</button><button class="btn btn-secondary" onclick="toggleManual()">취소</button></div>
+        </div>
+      </div>
+      
+      <div id="alertArea"></div>
+      
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <table>
+          <thead><tr><th>면접번호</th><th>지원직무</th><th>면접형식</th><th style="text-align:center;">상태</th><th style="text-align:center;">액션</th></tr></thead>
+          <tbody id="candidateTable"></tbody>
+        </table>
+      </div>
+    </div>
+    
+    <div id="results" class="tab-content">
+      <div class="card">
+        <h2>✅ 분석 완료 목록 <span id="completedCount" class="status-badge status-completed">0명</span></h2>
+        <div id="resultGrid" class="result-grid"></div>
+        <div id="noResults" style="text-align: center; padding: 3rem; color: #666;">📄 아직 분석 완료된 지원자가 없습니다.</div>
+      </div>
+      <div class="card" id="resultDetail" style="display: none;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 2rem;">
+          <div><h2 id="detailTitle"></h2><p id="detailSub" style="color: #888;"></p></div>
+          <div style="display: flex; gap: 0.5rem;"><button class="btn btn-secondary" onclick="downloadOne('word')">📄 Word</button><button class="btn btn-secondary" onclick="downloadOne('txt')">📝 TXT</button></div>
+        </div>
+        <div class="alert alert-info">※ 본 분석은 면접 중 답변 내용을 바탕으로 AI가 작성한 참고 자료입니다.</div>
+        <div id="analysisContent"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// 상태
+let competencies = [
+  { id: 1, name: '문제해결력', definition: '주어진 상황에서 논리적으로 문제를 분석하고 해결책을 제시하는 능력' },
+  { id: 2, name: '의사소통', definition: '자신의 생각을 명확하게 전달하고 질문의 의도를 파악하는 능력' }
+];
+let candidates = [];
+let currentRecId = null;
+let mediaRecorder = null;
+let audioChunks = [];
+let recInterval = null;
+let recTime = 0;
+let selectedId = null;
+
+const STATUS = { WAITING: 'waiting', RECORDING: 'recording', CONVERTING: 'converting', ANALYZING: 'analyzing', COMPLETED: 'completed', ERROR: 'error' };
+const STATUS_TEXT = { waiting: '대기', recording: '녹음중', converting: '변환중', analyzing: '분석중', completed: '완료', error: '오류' };
+
+// 초기화
+document.addEventListener('DOMContentLoaded', function() {
+  renderCompetencies();
+  renderCandidates();
+});
+
+// 탭 전환
+function showTab(id) {
+  document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+  event.target.classList.add('active');
+  document.getElementById(id).classList.add('active');
+}
+
+// 역량 관리
+function renderCompetencies() {
+  var list = document.getElementById('competencyList');
+  if (competencies.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:3rem;color:#666;">📋 설정된 역량이 없습니다.</div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < competencies.length; i++) {
+    var c = competencies[i];
+    html += '<div class="competency-item">';
+    html += '<span class="competency-num">' + (i + 1) + '</span>';
+    html += '<div><label>역량명</label><input type="text" value="' + c.name + '" onchange="updateComp(' + c.id + ',\'name\',this.value)"></div>';
+    html += '<div><label>정의</label><textarea rows="2" onchange="updateComp(' + c.id + ',\'definition\',this.value)">' + c.definition + '</textarea></div>';
+    html += '<button class="delete-btn" onclick="deleteComp(' + c.id + ')">🗑️</button>';
+    html += '</div>';
+  }
+  list.innerHTML = html;
+}
+
+function addCompetency() {
+  var maxId = 0;
+  for (var i = 0; i < competencies.length; i++) { if (competencies[i].id > maxId) maxId = competencies[i].id; }
+  competencies.push({ id: maxId + 1, name: '', definition: '' });
+  renderCompetencies();
+}
+
+function updateComp(id, field, value) {
+  for (var i = 0; i < competencies.length; i++) {
+    if (competencies[i].id === id) { competencies[i][field] = value; break; }
+  }
+}
+
+function deleteComp(id) {
+  competencies = competencies.filter(function(c) { return c.id !== id; });
+  renderCompetencies();
+}
+
+// CSV 처리
+function handleCSV(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var text = e.target.result;
+      var lines = text.split('\n').filter(function(l) { return l.trim(); });
+      if (lines.length < 2) { showAlert('error', 'CSV에 데이터가 없습니다.'); return; }
+      var delim = lines[0].indexOf('\t') >= 0 ? '\t' : ',';
+      var headers = parseCSVLine(lines[0], delim);
+      var idIdx = -1, posIdx = -1, typeIdx = -1;
+      for (var i = 0; i < headers.length; i++) {
+        var h = headers[i].toLowerCase();
+        if (h.indexOf('면접번호') >= 0 || h.indexOf('번호') >= 0 || h.indexOf('id') >= 0) idIdx = i;
+        if (h.indexOf('지원직무') >= 0 || h.indexOf('직무') >= 0) posIdx = i;
+        if (h.indexOf('면접형식') >= 0 || h.indexOf('형식') >= 0) typeIdx = i;
+      }
+      if (idIdx < 0) { showAlert('error', '면접번호 컬럼을 찾을 수 없습니다. 컬럼: ' + headers.join(', ')); return; }
+      var count = 0;
+      for (var i = 1; i < lines.length; i++) {
+        var vals = parseCSVLine(lines[i], delim);
+        var id = (vals[idIdx] || '').trim();
+        if (!id) continue;
+        var finalId = id;
+        var suffix = 2;
+        while (candidates.some(function(c) { return c.id === finalId; })) { finalId = id + '_' + suffix; suffix++; }
+        candidates.push({
+          id: finalId,
+          position: (posIdx >= 0 ? vals[posIdx] : '').trim() || '미지정',
+          interviewType: (typeIdx >= 0 ? vals[typeIdx] : '').trim() || '일반',
+          status: STATUS.WAITING, audioBlob: null, transcript: '', analysis: null, error: null
+        });
+        count++;
+      }
+      showAlert('success', count + '명의 지원자가 등록되었습니다.');
+      renderCandidates();
+    } catch (err) { showAlert('error', 'CSV 파싱 오류: ' + err.message); }
+  };
+  reader.readAsText(file, 'UTF-8');
+  event.target.value = '';
+}
+
+function parseCSVLine(line, delim) {
+  var result = [], current = '', inQuotes = false;
+  for (var i = 0; i < line.length; i++) {
+    var ch = line[i];
+    if (ch === '"') inQuotes = !inQuotes;
+    else if (ch === delim && !inQuotes) { result.push(current.trim()); current = ''; }
+    else current += ch;
+  }
+  result.push(current.trim());
+  return result;
+}
+
+// 수동 추가
+function toggleManual() {
+  document.getElementById('manualForm').classList.toggle('show');
+}
+
+function addManual() {
+  var id = document.getElementById('manualId').value.trim();
+  var pos = document.getElementById('manualPos').value.trim() || '미지정';
+  var type = document.getElementById('manualType').value;
+  if (!id) { showAlert('error', '면접번호를 입력해주세요.'); return; }
+  var finalId = id, suffix = 2;
+  while (candidates.some(function(c) { return c.id === finalId; })) { finalId = id + '_' + suffix; suffix++; }
+  candidates.push({ id: finalId, position: pos, interviewType: type, status: STATUS.WAITING, audioBlob: null, transcript: '', analysis: null, error: null });
+  document.getElementById('manualId').value = '';
+  document.getElementById('manualPos').value = '';
+  toggleManual();
+  showAlert('success', '지원자가 추가되었습니다.' + (finalId !== id ? ' (중복으로 ' + finalId + '로 등록)' : ''));
+  renderCandidates();
+}
+
+// 지원자 렌더링
+function renderCandidates() {
+  var tbody = document.getElementById('candidateTable');
+  if (candidates.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="padding:4rem;text-align:center;color:#666;">👥 등록된 지원자가 없습니다.</td></tr>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < candidates.length; i++) {
+    var c = candidates[i];
+    var bg = currentRecId === c.id ? 'background:rgba(239,68,68,0.1);' : '';
+    html += '<tr style="' + bg + '">';
+    html += '<td style="font-weight:500;">' + c.id + '</td>';
+    html += '<td style="color:#aaa;">' + c.position + '</td>';
+    html += '<td><span class="type-' + c.interviewType + '">' + c.interviewType + '</span></td>';
+    html += '<td style="text-align:center;"><span class="status-badge status-' + c.status + '">';
+    if (c.status === STATUS.RECORDING) html += '<span class="recording-dot"></span> ';
+    if (c.status === STATUS.CONVERTING || c.status === STATUS.ANALYZING) html += '⏳ ';
+    if (c.status === STATUS.COMPLETED) html += '✅ ';
+    if (c.status === STATUS.ERROR) html += '❌ ';
+    html += STATUS_TEXT[c.status];
+    if (c.status === STATUS.RECORDING) html += ' ' + formatTime(recTime);
+    html += '</span></td>';
+    html += '<td style="text-align:center;"><div style="display:flex;gap:0.5rem;justify-content:center;">';
+    if (c.status === STATUS.WAITING) {
+      html += '<button class="btn btn-primary btn-sm" onclick="startRec(\'' + c.id + '\')"' + (currentRecId ? ' disabled' : '') + '>🎙️ 녹음</button>';
+    }
+    if (c.status === STATUS.RECORDING && currentRecId === c.id) {
+      html += '<button class="btn btn-danger btn-sm" onclick="stopRec()">⏹️ 종료</button>';
+    }
+    if (c.status === STATUS.COMPLETED) {
+      html += '<button class="btn btn-secondary btn-sm" onclick="viewResult(\'' + c.id + '\')">👁️ 결과</button>';
+    }
+    if (c.status === STATUS.ERROR) {
+      html += '<button class="btn btn-secondary btn-sm" onclick="retry(\'' + c.id + '\')" title="' + (c.error || '') + '">🔄 재시도</button>';
+    }
+    html += '<button class="delete-btn" onclick="deleteCand(\'' + c.id + '\')">🗑️</button>';
+    html += '</div></td></tr>';
+  }
+  tbody.innerHTML = html;
+  document.getElementById('downloadAllBtn').disabled = !candidates.some(function(c) { return c.status === STATUS.COMPLETED; });
+  renderResults();
+}
+
+function deleteCand(id) {
+  if (currentRecId === id) stopRec();
+  candidates = candidates.filter(function(c) { return c.id !== id; });
+  renderCandidates();
+}
+
+function retry(id) {
+  var c = candidates.find(function(x) { return x.id === id; });
+  if (c) { c.status = STATUS.WAITING; c.error = null; renderCandidates(); }
+}
+
+// 녹음
+function startRec(id) {
+  var apiKey = document.getElementById('openaiKey').value.trim();
+  if (!apiKey) {
+    showAlert('warning', 'OpenAI API Key가 없습니다. 설정 탭에서 입력 후 녹음해주세요.');
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showAlert('error', '이 브라우저는 녹음을 지원하지 않습니다.');
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(function(stream) {
+      var mimeType = 'audio/webm';
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mimeType = 'audio/webm;codecs=opus';
+      else if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
+      mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+      audioChunks = [];
+      mediaRecorder.ondataavailable = function(e) { if (e.data.size > 0) audioChunks.push(e.data); };
+      mediaRecorder.onstop = function() {
+        var blob = new Blob(audioChunks, { type: mimeType });
+        var c = candidates.find(function(x) { return x.id === id; });
+        if (c) { c.audioBlob = blob; c.status = STATUS.CONVERTING; }
+        stream.getTracks().forEach(function(t) { t.stop(); });
+        renderCandidates();
+        processAudio(id, blob);
+      };
+      mediaRecorder.start(1000);
+      currentRecId = id;
+      recTime = 0;
+      var c = candidates.find(function(x) { return x.id === id; });
+      if (c) c.status = STATUS.RECORDING;
+      recInterval = setInterval(function() { recTime++; renderCandidates(); }, 1000);
+      renderCandidates();
+      showAlert('success', '녹음이 시작되었습니다. 🎙️');
+    })
+    .catch(function(err) {
+      var msg = '마이크 접근 실패: ';
+      if (err.name === 'NotAllowedError') msg += '권한이 거부되었습니다. 브라우저에서 마이크를 허용해주세요.';
+      else if (err.name === 'NotFoundError') msg += '마이크를 찾을 수 없습니다.';
+      else msg += err.message;
+      showAlert('error', msg);
+    });
+}
+
+function stopRec() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  if (recInterval) clearInterval(recInterval);
+  currentRecId = null;
+  recTime = 0;
+}
+
+function formatTime(s) {
+  var m = Math.floor(s / 60);
+  var sec = s % 60;
+  return (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
+}
+
+// 음성 처리
+function processAudio(id, blob) {
+  var apiKey = document.getElementById('openaiKey').value.trim();
+  var c = candidates.find(function(x) { return x.id === id; });
+  if (!apiKey) {
+    c.status = STATUS.ERROR;
+    c.error = 'OpenAI API Key가 필요합니다.';
+    renderCandidates();
+    showAlert('error', 'OpenAI API Key가 필요합니다. 설정 탭에서 입력해주세요.');
+    return;
+  }
+  var formData = new FormData();
+  formData.append('file', blob, 'recording.webm');
+  formData.append('model', 'whisper-1');
+  formData.append('language', 'ko');
+  
+  fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + apiKey },
+    body: formData
+  })
+  .then(function(res) {
+    if (!res.ok) throw new Error('Whisper API 오류: ' + res.status);
+    return res.json();
+  })
+  .then(function(data) {
+    c.transcript = data.text;
+    c.status = STATUS.ANALYZING;
+    renderCandidates();
+    return analyzeWithClaude(c.transcript, c.interviewType);
+  })
+  .then(function(analysis) {
+    c.analysis = analysis;
+    c.status = STATUS.COMPLETED;
+    renderCandidates();
+    showAlert('success', c.id + ' 분석이 완료되었습니다.');
+  })
+  .catch(function(err) {
+    c.status = STATUS.ERROR;
+    c.error = err.message;
+    renderCandidates();
+    showAlert('error', '처리 오류: ' + err.message);
+  });
+}
+
+function analyzeWithClaude(transcript, interviewType) {
+  var compList = '';
+  for (var i = 0; i < competencies.length; i++) {
+    compList += (i + 1) + '. ' + competencies[i].name + ': ' + competencies[i].definition + '\n';
+  }
+  var typeDesc = interviewType === '발표' ? '발표 면접 (발표 후 질의응답)' : '일반 질의응답 면접';
+  var prompt = '당신은 채용 면접 분석 전문가입니다. 아래 면접 녹취록을 분석해주세요.\n\n';
+  prompt += '[면접 형식] ' + typeDesc + '\n\n';
+  prompt += '[녹취록]\n' + transcript + '\n\n';
+  prompt += '[평가 역량]\n' + compList + '\n';
+  prompt += '각 역량별로 강점과 개선점을 2~3개씩 제시하고, 근거를 함께 작성해주세요.\n';
+  prompt += '관찰되지 않으면 "관찰되지 않음"으로 표기하세요.\n';
+  prompt += '부드러운 톤으로 작성해주세요.\n\n';
+  prompt += 'JSON 형식으로만 응답:\n';
+  prompt += '{"competencies":[{"name":"역량명","strengths":[{"point":"강점","evidence":"근거"}],"improvements":[{"point":"개선점","evidence":"근거"}]}],"overallComment":"종합의견"}\n';
+  prompt += 'DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.';
+
+  return fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  })
+  .then(function(res) {
+    if (!res.ok) throw new Error('Claude API 오류: ' + res.status);
+    return res.json();
+  })
+  .then(function(data) {
+    var text = data.content[0].text;
+    text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(text);
+  });
+}
+
+// 결과 렌더링
+function renderResults() {
+  var completed = candidates.filter(function(c) { return c.status === STATUS.COMPLETED; });
+  document.getElementById('completedCount').textContent = completed.length + '명';
+  var grid = document.getElementById('resultGrid');
+  var noRes = document.getElementById('noResults');
+  if (completed.length === 0) {
+    grid.innerHTML = '';
+    noRes.style.display = 'block';
+    document.getElementById('resultDetail').style.display = 'none';
+    return;
+  }
+  noRes.style.display = 'none';
+  var html = '';
+  for (var i = 0; i < completed.length; i++) {
+    var c = completed[i];
+    var sel = selectedId === c.id ? ' selected' : '';
+    html += '<div class="result-card' + sel + '" onclick="viewResult(\'' + c.id + '\')">';
+    html += '<div style="display:flex;justify-content:space-between;">';
+    html += '<div><div style="font-weight:600;font-size:1.1rem;">' + c.id + '</div><div style="color:#888;font-size:0.9rem;">' + c.position + '</div></div>';
+    html += '<span class="type-' + c.interviewType + '">' + c.interviewType + '</span>';
+    html += '</div></div>';
+  }
+  grid.innerHTML = html;
+}
+
+function viewResult(id) {
+  selectedId = id;
+  var c = candidates.find(function(x) { return x.id === id; });
+  if (!c || !c.analysis) return;
+  document.getElementById('detailTitle').textContent = c.id + ' 분석 결과';
+  document.getElementById('detailSub').textContent = c.position + ' | ' + c.interviewType + ' 면접';
+  var analysis = c.analysis;
+  var html = '';
+  for (var i = 0; i < analysis.competencies.length; i++) {
+    var comp = analysis.competencies[i];
+    html += '<div class="analysis-section">';
+    html += '<h3>▶ ' + comp.name + '</h3>';
+    html += '<h4 style="color:#10B981;font-weight:600;margin-bottom:0.75rem;">✓ 강점</h4>';
+    for (var j = 0; j < comp.strengths.length; j++) {
+      var s = comp.strengths[j];
+      html += '<div style="margin-bottom:1rem;padding-left:1rem;"><div>' + (j + 1) + '. ' + s.point + '</div>';
+      html += '<div class="evidence" style="border-color:#10B981;">[근거] ' + s.evidence + '</div></div>';
+    }
+    html += '<h4 style="color:#F59E0B;font-weight:600;margin:1rem 0 0.75rem;">△ 개선점</h4>';
+    for (var j = 0; j < comp.improvements.length; j++) {
+      var im = comp.improvements[j];
+      html += '<div style="margin-bottom:1rem;padding-left:1rem;"><div>' + (j + 1) + '. ' + im.point + '</div>';
+      html += '<div class="evidence" style="border-color:#F59E0B;">[근거] ' + im.evidence + '</div></div>';
+    }
+    html += '</div>';
+  }
+  html += '<div style="padding:1.5rem;background:linear-gradient(135deg,rgba(59,130,246,0.1),rgba(139,92,246,0.1));border-radius:12px;border:1px solid rgba(59,130,246,0.2);">';
+  html += '<h3 style="color:#A78BFA;margin-bottom:1rem;">【 종합 의견 】</h3>';
+  html += '<p style="line-height:1.8;color:#ccc;">' + analysis.overallComment + '</p></div>';
+  document.getElementById('analysisContent').innerHTML = html;
+  document.getElementById('resultDetail').style.display = 'block';
+  renderResults();
+  showTab('results');
+  document.querySelector('[onclick="showTab(\'results\')"]').classList.add('active');
+}
+
+// 다운로드
+function downloadOne(format) {
+  var c = candidates.find(function(x) { return x.id === selectedId; });
+  if (!c || !c.analysis) return;
+  var content = buildContent(c);
+  if (format === 'word') {
+    var html = '<html><head><meta charset="utf-8"></head><body style="font-family:맑은 고딕;line-height:1.6;"><pre style="white-space:pre-wrap;">' + content + '</pre></body></html>';
+    downloadFile(html, '면접분석_' + c.id + '.doc', 'application/msword');
+  } else {
+    downloadFile(content, '면접분석_' + c.id + '.txt', 'text/plain');
+  }
+}
+
+function downloadAll() {
+  var completed = candidates.filter(function(c) { return c.status === STATUS.COMPLETED; });
+  if (completed.length === 0) return;
+  for (var i = 0; i < completed.length; i++) {
+    var c = completed[i];
+    var content = buildContent(c);
+    downloadFile(content, '면접분석_' + c.id + '.txt', 'text/plain');
+  }
+}
+
+function buildContent(c) {
+  var a = c.analysis;
+  var s = '면접 분석 결과\n\n';
+  s += '면접번호: ' + c.id + '\n';
+  s += '지원직무: ' + c.position + '\n';
+  s += '면접형식: ' + c.interviewType + '\n';
+  s += '분석일시: ' + new Date().toLocaleString('ko-KR') + '\n\n';
+  s += '※ 본 분석은 AI가 작성한 참고 자료입니다.\n\n';
+  s += '==================================================\n\n';
+  for (var i = 0; i < a.competencies.length; i++) {
+    var comp = a.competencies[i];
+    s += '【 ' + comp.name + ' 】\n\n';
+    s += '▶ 강점\n';
+    for (var j = 0; j < comp.strengths.length; j++) {
+      s += (j + 1) + '. ' + comp.strengths[j].point + '\n   [근거] ' + comp.strengths[j].evidence + '\n\n';
+    }
+    s += '▶ 개선점\n';
+    for (var j = 0; j < comp.improvements.length; j++) {
+      s += (j + 1) + '. ' + comp.improvements[j].point + '\n   [근거] ' + comp.improvements[j].evidence + '\n\n';
+    }
+    s += '--------------------------------------------------\n\n';
+  }
+  s += '【 종합 의견 】\n\n' + a.overallComment;
+  return s;
+}
+
+function downloadFile(content, filename, mime) {
+  var blob = new Blob([content], { type: mime + ';charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// 알림
+function showAlert(type, msg) {
+  var area = document.getElementById('alertArea');
+  var id = 'alert-' + Date.now();
+  var icon = type === 'error' ? '❌' : type === 'success' ? '✅' : '⚠️';
+  area.innerHTML = '<div id="' + id + '" class="alert alert-' + type + '"><span>' + icon + '</span><pre style="margin:0;white-space:pre-wrap;font-family:inherit;flex:1;">' + msg + '</pre><button onclick="document.getElementById(\'' + id + '\').remove()" style="background:none;border:none;cursor:pointer;color:inherit;">✕</button></div>';
+  if (type !== 'error') setTimeout(function() { var el = document.getElementById(id); if (el) el.remove(); }, 3000);
+}
+</script>
+</body>
+</html>

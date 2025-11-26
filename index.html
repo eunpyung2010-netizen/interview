@@ -410,7 +410,7 @@ function processAudio(id, blob) {
   var c = candidates.find(function(x) { return x.id === id; });
   if (!apiKey) {
     c.status = STATUS.ERROR;
-    c.error = 'OpenAI API Key가 필요합니다.';
+    c.error = '[음성변환 오류] OpenAI API Key가 필요합니다.';
     renderCandidates();
     showAlert('error', 'OpenAI API Key가 필요합니다. 설정 탭에서 입력해주세요.');
     return;
@@ -426,7 +426,7 @@ function processAudio(id, blob) {
     body: formData
   })
   .then(function(res) {
-    if (!res.ok) throw new Error('Whisper API 오류: ' + res.status);
+    if (!res.ok) throw new Error('[음성변환 오류] Whisper API: ' + res.status);
     return res.json();
   })
   .then(function(data) {
@@ -445,7 +445,7 @@ function processAudio(id, blob) {
     c.status = STATUS.ERROR;
     c.error = err.message;
     renderCandidates();
-    showAlert('error', '처리 오류: ' + err.message);
+    showAlert('error', err.message);
   });
 }
 
@@ -466,23 +466,29 @@ function analyzeWithClaude(transcript, interviewType) {
   prompt += '{"competencies":[{"name":"역량명","strengths":[{"point":"강점","evidence":"근거"}],"improvements":[{"point":"개선점","evidence":"근거"}]}],"overallComment":"종합의견"}\n';
   prompt += 'DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.';
 
-  return fetch('https://api.anthropic.com/v1/messages', {
+  // Vercel API 라우트를 통해 호출 (환경변수 사용)
+  return fetch('/api/analyze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4000,
-      messages: [{ role: 'user', content: prompt }]
-    })
+    body: JSON.stringify({ prompt: prompt })
   })
   .then(function(res) {
-    if (!res.ok) throw new Error('Claude API 오류: ' + res.status);
+    if (!res.ok) {
+      return res.json().then(function(errData) {
+        throw new Error('[분석 오류] ' + (errData.error || 'Claude API 오류: ' + res.status));
+      });
+    }
     return res.json();
   })
   .then(function(data) {
-    var text = data.content[0].text;
+    if (data.error) throw new Error('[분석 오류] ' + data.error);
+    var text = data.content;
     text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    return JSON.parse(text);
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error('[분석 오류] JSON 파싱 실패: ' + e.message);
+    }
   });
 }
 
